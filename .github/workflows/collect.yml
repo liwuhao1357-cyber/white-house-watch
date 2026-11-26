@@ -18,7 +18,7 @@ jobs:
         run: python3 -m unittest -v test_collector
       - name: Collect real source feeds
         env:
-          WATCH_TRANSLATE: '0'
+          WATCH_TRANSLATE: '1'
         run: python3 collector.py
       - name: Save data without rebuilding the website
         run: |
