@@ -96,18 +96,23 @@ def save(source,items):
         c.execute("INSERT INTO status VALUES(?,?,?, '') ON CONFLICT(source) DO UPDATE SET checked=excluded.checked,success=excluded.success,error=''",(source,now(),now()))
 def fail(source,err):
     with conn() as c: c.execute("INSERT INTO status VALUES(?,?,'',?) ON CONFLICT(source) DO UPDATE SET checked=excluded.checked,error=excluded.error",(source,now(),str(err)[:220]))
-def translate_batch():
-    if not TRANSLATE: return
+def translate_batch(usage):
+    if not TRANSLATE: return usage
+    today=datetime.now(timezone.utc).date().isoformat()
+    if usage.get('date')!=today: usage={'date':today,'chars':0}
     with LOCK:
-        with conn() as c: rows=c.execute("SELECT id,title,content FROM items WHERE zh='' ORDER BY published DESC LIMIT 3").fetchall()
+        with conn() as c: rows=c.execute("SELECT id,title,content FROM items WHERE zh='' ORDER BY published DESC LIMIT 20").fetchall()
         for r in rows:
             try:
-                original=r['title'] or r['content']; snippet=original.encode('utf-8')[:450].decode('utf-8','ignore')
+                original=r['title'] or r['content']; snippet=original[:220]
+                if not snippet or usage['chars']+len(snippet)>4000: break
                 u='https://api.mymemory.translated.net/get?'+urlencode({'q':snippet,'langpair':'en|zh-CN'})
                 j=json.loads(fetch(u)); zh=j.get('responseData',{}).get('translatedText','')
-                if str(j.get('responseStatus'))!='200' or not zh: continue
+                if j.get('quotaFinished') or str(j.get('responseStatus'))!='200' or not zh: break
                 with conn() as c: c.execute('UPDATE items SET zh=? WHERE id=?',(zh,r['id']))
+                usage['chars']+=len(snippet)
             except Exception: logging.exception('Optional translation failed'); break
+    return usage
 
 # One short execution per scheduled job; no always-on server.
 def run_once(previous):
@@ -126,14 +131,15 @@ def run_once(previous):
             raw=fetch(SOURCES[source][0]); save(source,parse_cnn(raw) if source=='trump_cnn' else parse_rss(raw,source))
         except Exception as exc:
             errors[source]=True; fail(source,exc)
-    if TRANSLATE: translate_batch()
+    usage=translate_batch(previous.get('translation_usage',{}))
     with conn() as c:
         items=[dict(r) for r in c.execute('SELECT * FROM items ORDER BY published DESC LIMIT 500')]
         status={r['source']:dict(r) for r in c.execute('SELECT * FROM status')}
     # Keep bounded excerpts and canonical source links; no fabricated content.
     for x in items:
+        x['title']=x['title'][:280]
         x['content']=x['content'][:280]
-    return {'items':items,'status':status,'translate':TRANSLATE,'updated':now()}
+    return {'items':items,'status':status,'translate':TRANSLATE,'translation_usage':usage,'updated':now()}
 errors={}
 if __name__=='__main__':
     archive=ROOT/'feed.json'
