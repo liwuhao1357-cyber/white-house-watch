@@ -2,7 +2,7 @@ name: Collect White House Watch
 on:
   workflow_dispatch:
   schedule:
-    - cron: '3-58/5 * * * *'
+    - cron: '7-57/10 * * * *'
 permissions:
   contents: write
 concurrency:
