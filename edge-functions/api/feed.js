@@ -3,7 +3,7 @@ export async function onRequest({request}) {
   const headers = {'Content-Type':'application/json; charset=utf-8','X-Content-Type-Options':'nosniff','Cache-Control':'public, max-age=60'};
   if (request.method !== 'GET' && request.method !== 'HEAD') return new Response('{"error":"method"}',{status:405,headers});
   try {
-    const upstream = await fetch(SOURCE, {headers:{Accept:'application/json'}});
+    const upstream = await fetch(SOURCE + '?minute=' + Math.floor(Date.now() / 60000), {headers:{Accept:'application/json'}});
     if (!upstream.ok) throw new Error('upstream unavailable');
     const data = await upstream.json();
     if (!Array.isArray(data.items) || !data.updated) throw new Error('invalid feed');
