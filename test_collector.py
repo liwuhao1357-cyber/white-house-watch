@@ -16,6 +16,10 @@ class WatchTests(unittest.TestCase):
         data=[{'id':'test','url':'https://truthsocial.com/@realDonaldTrump/test','created_at':'2026-11-26T01:00:00Z','content':'<p>Fixture only</p>'}]
         items=s.parse_cnn(json.dumps(data)); s.save('trump_cnn',items); s.save('trump_cnn',items)
         with s.conn() as c: self.assertEqual(c.execute('SELECT count(*) FROM items').fetchone()[0],1)
+    def test_distinct_posts_with_same_text_and_minute(self):
+        raw=b'''<rss><channel><item><title>Image post</title><description>Image post</description><link>https://www.trumpstruth.org/statuses/1</link><pubDate>Thu, 26 Nov 2026 01:00:01 GMT</pubDate></item><item><title>Image post</title><description>Image post</description><link>https://www.trumpstruth.org/statuses/2</link><pubDate>Thu, 26 Nov 2026 01:00:02 GMT</pubDate></item></channel></rss>'''
+        s.save('trump',s.parse_rss(raw,'trump'))
+        with s.conn() as c: self.assertEqual(c.execute('SELECT count(*) FROM items').fetchone()[0],2)
     def test_failure_preserves_data(self):
         s.save('trump',[]); s.fail('trump','fixture failure')
         with s.conn() as c:
