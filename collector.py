@@ -87,10 +87,6 @@ def save(source,items):
     with conn() as c:
         for item in items:
             key,group,kind,published,title,content,url=item
-            # RSS mirror and original post can use different URLs. Match only identical text in the same minute.
-            if group=='trump' and content:
-                duplicate=c.execute("SELECT id FROM items WHERE source='trump' AND substr(published,1,16)=substr(?,1,16) AND content=? LIMIT 1",(published,content)).fetchone()
-                if duplicate: continue
             c.execute('INSERT OR IGNORE INTO items(id,source,kind,published,title,content,url) VALUES(?,?,?,?,?,?,?)',item)
             if kind=='order': c.execute("UPDATE items SET kind='order' WHERE id=?",(key,))
         c.execute("INSERT INTO status VALUES(?,?,?, '') ON CONFLICT(source) DO UPDATE SET checked=excluded.checked,success=excluded.success,error=''",(source,now(),now()))
